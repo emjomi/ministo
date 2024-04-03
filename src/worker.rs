@@ -6,7 +6,7 @@ use std::{
     num::NonZeroUsize,
     sync::{
         mpsc::{channel, Receiver, TryRecvError},
-        Arc,
+        Arc, RwLock,
     },
     thread,
 };
@@ -25,8 +25,11 @@ pub struct Worker {
 impl Worker {
     pub fn init(job: Job, mode: Mode, num_threads: NonZeroUsize) -> Self {
         let (share_tx, share_rx) = channel();
-        let mut job_bus = Bus::new(8);
-        let context = Arc::new(Context::new(&job.seed, matches!(mode, Mode::Fast)));
+        let mut job_bus: Bus<Job> = Bus::new(8);
+        let context = Arc::new(RwLock::new(Arc::new(Context::new(
+            &job.seed,
+            matches!(mode, Mode::Fast),
+        ))));
         for i in 0..num_threads.get() {
             let mut job_rx = job_bus.add_rx();
             let share_tx = share_tx.clone();
@@ -35,9 +38,21 @@ impl Worker {
             let mut job = job.clone();
             let mut difficulty = job.difficulty();
             thread::spawn(move || {
-                let hasher = Hasher::new(context);
+                let mut hasher = Hasher::new(Arc::clone(&context.read().unwrap()));
                 loop {
                     if let Ok(new_job) = job_rx.try_recv() {
+                        if new_job.seed != job.seed {
+                            let mut context_lock = context.write().unwrap();
+                            if context_lock.key() != new_job.seed {
+                                *context_lock = Arc::new(Context::new(
+                                    &new_job.seed,
+                                    matches!(mode, Mode::Fast),
+                                ));
+                            }
+
+                            let context_lock = context.read().unwrap();
+                            hasher = Hasher::new(Arc::clone(&context_lock));
+                        }
                         nonce = i as u16;
                         job = new_job;
                         difficulty = job.difficulty();
@@ -51,7 +66,7 @@ impl Worker {
                             let _ = share_tx.send(Share {
                                 job_id: job.id.clone(),
                                 nonce: nonce_bytes.to_vec(),
-                                hash: hash.as_ref().try_into().unwrap(),
+                                hash: hash.as_ref().into(),
                             });
                         }
                         nonce = nonce.saturating_add(num_threads.get() as u16);
