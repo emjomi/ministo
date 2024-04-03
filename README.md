@@ -1,36 +1,32 @@
 # Ministo
 
-## Building
+Ministo is a RandomX CPU miner written in rust.
 
-Before you begin, make sure you have installed the necessary [build dependencies](https://github.com/tari-project/randomx-rs?tab=readme-ov-file#build-dependencies) for RandomX.
+## Instalation
 
-Clone the repository and navigate to the project directory:
+Ensure that you have [Rust](https://www.rust-lang.org/tools/install) and [CMake](https://cmake.org/download/) installed on your system.
 
-```bash 
-git clone https://github.com/emjomi/ministo.git
-cd ./ministo
-```
-
-Then build Ministo using Cargo:
+Install Ministo using Cargo:
 
 ```bash 
-cargo build --release
+cargo install --git https://github.com/emjomi/ministo.git
 ```
-
-The compiled binary will be available in the `./target/release/` directory.
 
 ## Usage
 
 To start mining, execute the following command:
 
 ```bash
-./ministo -o <POOL> -u <WALLET>
+ministo -o <POOL> -u <WALLET>
 ```
 
-Replace `<POOL>` with your desired mining pool address and `<WALLET>` with your wallet address. 
+Here are the arguments you need to provide:
 
-Ministo will utilize default settings for any omitted parameters. To explore available command line options, use:
+* `<POOL>`: The address (`<URL>:<PORT>`) of mining pool.
+* `<WALLET>`: Your wallet address.
+
+Explore other command-line options and their default values using:
 
 ```bash
-./ministo --help
+ministo --help
 ```
