@@ -9,6 +9,6 @@ edition = "2021"
 bus = "2.4.1"
 clap = { version = "4.4.18", features = ["derive"] }
 hex = { version = "0.4.3", features = ["serde"] }
-randomx-rs = { git = "https://github.com/Cuprate/randomx-rs.git", version = "1.3.0" }
+rust-randomx = "0.7.3"
 serde = { version = "1.0.196", features = ["derive"] }
 serde_json = "1.0.113"
