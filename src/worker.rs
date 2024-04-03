@@ -1,11 +1,11 @@
 use crate::{job::Job, share::Share};
 
-use bus::Bus;
+use watch::{self, WatchSender};
 use rust_randomx::{Context, Hasher};
 use std::{
     num::NonZeroUsize,
     sync::{
-        mpsc::{channel, Receiver, TryRecvError},
+        mpsc::{self, Receiver, TryRecvError},
         Arc, Mutex,
     },
     thread,
@@ -19,28 +19,28 @@ pub enum Mode {
 
 pub struct Worker {
     share_rx: Receiver<Share>,
-    job_bus: Bus<Job>,
+    job_tx: WatchSender<Job>,
 }
 
 impl Worker {
     pub fn init(job: Job, mode: Mode, num_threads: NonZeroUsize) -> Self {
-        let (share_tx, share_rx) = channel();
-        let mut job_bus: Bus<Job> = Bus::new(8);
+        let (share_tx, share_rx) = mpsc::channel();
+        let (job_tx, job_rx) = watch::channel(job.clone());
         let context = Arc::new(Mutex::new(Arc::new(Context::new(
             &job.seed,
             matches!(mode, Mode::Fast),
         ))));
         for i in 0..num_threads.get() {
-            let mut job_rx = job_bus.add_rx();
-            let share_tx = share_tx.clone();
             let context = context.clone();
+            let share_tx = share_tx.clone();
+            let mut job_rx = job_rx.clone();
             let mut nonce = i as u16;
             let mut job = job.clone();
             let mut difficulty = job.difficulty();
             thread::spawn(move || {
                 let mut hasher = Hasher::new(Arc::clone(&context.lock().unwrap()));
                 loop {
-                    if let Ok(new_job) = job_rx.try_recv() {
+                    if let Some(new_job) = job_rx.get_if_new() {
                         if new_job.seed != job.seed {
                             let mut context_lock = context.lock().unwrap();
                             if context_lock.key() != new_job.seed {
@@ -72,10 +72,10 @@ impl Worker {
                 }
             });
         }
-        Worker { share_rx, job_bus }
+        Worker { share_rx, job_tx }
     }
-    pub fn work(&mut self, job: Job) {
-        self.job_bus.broadcast(job);
+    pub fn work(&self, job: Job) {
+        self.job_tx.send(job);
     }
     pub fn try_recv_share(&self) -> Result<Share, TryRecvError> {
         self.share_rx.try_recv()

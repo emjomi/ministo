@@ -49,7 +49,7 @@ fn main() -> io::Result<()> {
 
     let mode = if light { Mode::Light } else { Mode::Fast };
     let mut stratum = Stratum::login(&url, &user, &pass)?;
-    let mut worker = Worker::init(stratum.try_recv_job().unwrap(), mode, threads);
+    let worker = Worker::init(stratum.try_recv_job().unwrap(), mode, threads);
     let mut timer = Instant::now();
 
     loop {
