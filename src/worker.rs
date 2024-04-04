@@ -6,7 +6,7 @@ use std::{
     num::NonZeroUsize,
     sync::{
         mpsc::{channel, Receiver, TryRecvError},
-        Arc, RwLock,
+        Arc, Mutex,
     },
     thread,
 };
@@ -26,7 +26,7 @@ impl Worker {
     pub fn init(job: Job, mode: Mode, num_threads: NonZeroUsize) -> Self {
         let (share_tx, share_rx) = channel();
         let mut job_bus: Bus<Job> = Bus::new(8);
-        let context = Arc::new(RwLock::new(Arc::new(Context::new(
+        let context = Arc::new(Mutex::new(Arc::new(Context::new(
             &job.seed,
             matches!(mode, Mode::Fast),
         ))));
@@ -38,19 +38,17 @@ impl Worker {
             let mut job = job.clone();
             let mut difficulty = job.difficulty();
             thread::spawn(move || {
-                let mut hasher = Hasher::new(Arc::clone(&context.read().unwrap()));
+                let mut hasher = Hasher::new(Arc::clone(&context.lock().unwrap()));
                 loop {
                     if let Ok(new_job) = job_rx.try_recv() {
                         if new_job.seed != job.seed {
-                            let mut context_lock = context.write().unwrap();
+                            let mut context_lock = context.lock().unwrap();
                             if context_lock.key() != new_job.seed {
                                 *context_lock = Arc::new(Context::new(
                                     &new_job.seed,
                                     matches!(mode, Mode::Fast),
                                 ));
                             }
-
-                            let context_lock = context.read().unwrap();
                             hasher = Hasher::new(Arc::clone(&context_lock));
                         }
                         nonce = i as u16;
