@@ -1,12 +1,15 @@
 mod rpc;
 
 use crate::{job::Job, share::Share};
-use rpc::*;
+use rpc::{
+    request::{KeepAlivedParams, LoginParams, Request, SubmitParams},
+    response::{LoginResult, Response, StatusResult},
+};
 use serde::Deserialize;
 use std::{
     io::{self, BufReader, BufWriter},
     net::TcpStream,
-    sync::mpsc::{channel, Receiver, TryRecvError},
+    sync::mpsc::{self, Receiver, TryRecvError},
     thread,
 };
 
@@ -30,21 +33,21 @@ impl Stratum {
         let mut reader = BufReader::new(stream.try_clone()?);
         let mut writer = BufWriter::new(stream.try_clone()?);
 
-        let (job_tx, job_rx) = channel();
+        let (job_tx, job_rx) = mpsc::channel();
 
-        send(
+        rpc::send(
             &mut writer,
             &Request::<LoginParams>::new(LoginParams {
                 login: user.into(),
                 pass: pass.into(),
             }),
         )?;
-        let response = recv::<Response<LoginResult>>(&mut reader)?;
+        let response = rpc::recv::<Response<LoginResult>>(&mut reader)?;
         if let Some(result) = response.result {
             let LoginResult { id, job, .. } = result;
             job_tx.send(job).unwrap();
             thread::spawn(move || loop {
-                let msg = recv::<PoolMessage>(&mut reader).unwrap();
+                let msg = rpc::recv::<PoolMessage>(&mut reader).unwrap();
                 match msg {
                     PoolMessage::Response(response) => {
                         if let Some(err) = response.error {
@@ -65,9 +68,8 @@ impl Stratum {
             panic!("{}", response.error.unwrap().message);
         }
     }
-
     pub fn submit(&mut self, share: Share) -> io::Result<()> {
-        send(
+        rpc::send(
             &mut self.writer,
             &Request::<SubmitParams>::new(SubmitParams {
                 id: self.login_id.clone(),
@@ -77,16 +79,14 @@ impl Stratum {
             }),
         )
     }
-
     pub fn keep_alive(&mut self) -> io::Result<()> {
-        send(
+        rpc::send(
             &mut self.writer,
             &Request::<KeepAlivedParams>::new(KeepAlivedParams {
                 id: self.login_id.clone(),
             }),
         )
     }
-
     pub fn try_recv_job(&self) -> Result<Job, TryRecvError> {
         self.job_rx.try_recv()
     }

@@ -1,13 +1,12 @@
-mod request;
-mod response;
+pub mod request;
+pub mod response;
 
-pub use request::*;
-pub use response::*;
-use std::io;
-use std::io::{BufReader, BufWriter, Write};
-
+use request::Request;
 use serde::{de::DeserializeOwned, Serialize};
-use std::net::TcpStream;
+use std::{
+    io::{self, BufReader, BufWriter, Write},
+    net::TcpStream,
+};
 
 pub fn send<S: Serialize>(
     writer: &mut BufWriter<TcpStream>,

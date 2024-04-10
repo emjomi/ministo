@@ -1,6 +1,4 @@
 use crate::{job::Job, share::Share};
-
-use watch::{self, WatchSender};
 use rust_randomx::{Context, Hasher};
 use std::{
     num::NonZeroUsize,
@@ -10,12 +8,7 @@ use std::{
     },
     thread,
 };
-
-#[derive(Clone, Copy)]
-pub enum Mode {
-    Light,
-    Fast,
-}
+use watch::WatchSender;
 
 pub struct Worker {
     share_rx: Receiver<Share>,
@@ -23,13 +16,10 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn init(job: Job, mode: Mode, num_threads: NonZeroUsize) -> Self {
+    pub fn init(job: Job, num_threads: NonZeroUsize, fast: bool) -> Self {
         let (share_tx, share_rx) = mpsc::channel();
         let (job_tx, job_rx) = watch::channel(job.clone());
-        let context = Arc::new(Mutex::new(Arc::new(Context::new(
-            &job.seed,
-            matches!(mode, Mode::Fast),
-        ))));
+        let context = Arc::new(Mutex::new(Arc::new(Context::new(&job.seed, fast))));
         for i in 0..num_threads.get() {
             let context = context.clone();
             let share_tx = share_tx.clone();
@@ -44,10 +34,7 @@ impl Worker {
                         if new_job.seed != job.seed {
                             let mut context_lock = context.lock().unwrap();
                             if context_lock.key() != new_job.seed {
-                                *context_lock = Arc::new(Context::new(
-                                    &new_job.seed,
-                                    matches!(mode, Mode::Fast),
-                                ));
+                                *context_lock = Arc::new(Context::new(&new_job.seed, fast));
                             }
                             hasher = Hasher::new(Arc::clone(&context_lock));
                         }

@@ -3,14 +3,16 @@ mod share;
 mod stratum;
 mod worker;
 
-use crate::stratum::Stratum;
-use crate::worker::{Mode, Worker};
+use crate::{stratum::Stratum, worker::Worker};
 use clap::Parser;
-use std::io;
-use std::num::NonZeroUsize;
-use std::time::{Duration, Instant};
+use std::{
+    io,
+    num::NonZeroUsize,
+    time::{Duration, Instant},
+};
 
 const KEEP_ALIVE_INTERVAL: Duration = Duration::from_secs(60);
+
 #[derive(Parser)]
 struct Args {
     /// Pool address (URL:PORT)
@@ -47,9 +49,8 @@ fn main() -> io::Result<()> {
         threads,
     } = Args::parse();
 
-    let mode = if light { Mode::Light } else { Mode::Fast };
     let mut stratum = Stratum::login(&url, &user, &pass)?;
-    let worker = Worker::init(stratum.try_recv_job().unwrap(), mode, threads);
+    let worker = Worker::init(stratum.try_recv_job().unwrap(), threads, !light);
     let mut timer = Instant::now();
 
     loop {
@@ -61,7 +62,7 @@ fn main() -> io::Result<()> {
             println!("Submit share request sending...");
             stratum.submit(share)?;
         }
-        if timer.elapsed() > KEEP_ALIVE_INTERVAL {
+        if timer.elapsed() >= KEEP_ALIVE_INTERVAL {
             println!("Keep Alive request sending...");
             timer = Instant::now();
             stratum.keep_alive()?;
