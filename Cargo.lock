@@ -164,9 +164,9 @@ dependencies = [
 
 [[package]]
 name = "rust-randomx"
-version = "0.7.3"
+version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eaf5a24557d8e2ca5dcad0c45e9f4568c12701a3198df01e277b792f07f230f8"
+checksum = "7acb42e1a327828013c1d23bcc40c4a45c336ff898b8f978045d704908cae9c5"
 dependencies = [
  "cmake",
 ]

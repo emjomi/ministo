@@ -36,7 +36,7 @@ impl Worker {
                             if context_lock.key() != new_job.seed {
                                 *context_lock = Arc::new(Context::new(&new_job.seed, fast));
                             }
-                            hasher = Hasher::new(Arc::clone(&context_lock));
+                            hasher.update(Arc::clone(&context_lock));
                         }
                         nonce = i as u16;
                         job = new_job;
