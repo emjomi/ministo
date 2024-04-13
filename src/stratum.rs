@@ -65,7 +65,7 @@ impl Stratum {
                 job_rx,
             })
         } else {
-            panic!("{}", response.error.unwrap().message);
+            Err(io::Error::other(response.error.unwrap().message))
         }
     }
     pub fn submit(&mut self, share: Share) -> io::Result<()> {
