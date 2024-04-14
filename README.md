@@ -4,12 +4,13 @@ Ministo is a RandomX CPU miner written in rust.
 
 ## Instalation
 
-Ensure that you have [Rust](https://www.rust-lang.org/tools/install) and [CMake](https://cmake.org/download/) installed on your system.
+Ensure that you have [Rust](https://www.rust-lang.org/tools/install) and [CMake](https://cmake.org/download/) installed
+on your system.
 
 Install Ministo using Cargo:
 
 ```bash 
-cargo install --git https://github.com/emjomi/ministo.git
+cargo install ministo
 ```
 
 ## Usage
