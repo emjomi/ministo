@@ -27,6 +27,7 @@ pub struct Stratum {
 }
 
 impl Stratum {
+    #[tracing::instrument]
     pub fn login(url: &str, user: &str, pass: &str) -> io::Result<Self> {
         let stream = TcpStream::connect(url)?;
         stream.set_read_timeout(None)?;
@@ -44,19 +45,31 @@ impl Stratum {
         )?;
         let response = rpc::recv::<Response<LoginResult>>(&mut reader)?;
         if let Some(result) = response.result {
+            tracing::info!("success");
             let LoginResult { id, job, .. } = result;
             job_tx.send(job).unwrap();
-            thread::spawn(move || loop {
-                let msg = rpc::recv::<PoolMessage>(&mut reader).unwrap();
-                match msg {
-                    PoolMessage::Response(response) => {
-                        if let Some(err) = response.error {
-                            panic!("{}", err.message);
-                        } else {
-                            println!("Pool message: {:?}", response.result.unwrap().status);
+            thread::spawn(move || {
+                let span = tracing::info_span!("listener");
+                let _enter = span.enter();
+                loop {
+                    let msg = rpc::recv::<PoolMessage>(&mut reader).unwrap();
+                    match msg {
+                        PoolMessage::Response(response) => {
+                            if let Some(err) = response.error {
+                                tracing::warn!("{}", err.message);
+                            } else {
+                                match response.result.unwrap().status.as_str() {
+                                    "OK" => tracing::info!("accepted"),
+                                    "KEEPALIVED" => tracing::debug!("keepalived"),
+                                    _ => todo!(),
+                                }
+                            }
+                        }
+                        PoolMessage::NewJob(request) => {
+                            tracing::info!("new job");
+                            job_tx.send(request.params).unwrap()
                         }
                     }
-                    PoolMessage::NewJob(request) => job_tx.send(request.params).unwrap(),
                 }
             });
             Ok(Self {
@@ -65,7 +78,9 @@ impl Stratum {
                 job_rx,
             })
         } else {
-            Err(io::Error::other(response.error.unwrap().message))
+            let msg = response.error.unwrap().message;
+            tracing::warn!("{}", msg);
+            Err(io::Error::other(msg))
         }
     }
     pub fn submit(&mut self, share: Share) -> io::Result<()> {

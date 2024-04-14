@@ -1,3 +1,5 @@
+extern crate core;
+
 mod job;
 mod share;
 mod stratum;
@@ -41,6 +43,13 @@ fn all_threads() -> NonZeroUsize {
 }
 
 fn main() -> io::Result<()> {
+    tracing_subscriber::fmt()
+        .pretty()
+        .with_max_level(tracing::Level::DEBUG)
+        .with_file(false)
+        .with_line_number(false)
+        .init();
+
     let Args {
         url,
         user,
@@ -55,15 +64,12 @@ fn main() -> io::Result<()> {
 
     loop {
         if let Ok(job) = stratum.try_recv_job() {
-            println!("New Job!");
             worker.work(job);
         }
         if let Ok(share) = worker.try_recv_share() {
-            println!("Submit share request sending...");
             stratum.submit(share)?;
         }
         if timer.elapsed() >= KEEP_ALIVE_INTERVAL {
-            println!("Keep Alive request sending...");
             timer = Instant::now();
             stratum.keep_alive()?;
         }
