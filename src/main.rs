@@ -1,5 +1,3 @@
-extern crate core;
-
 mod job;
 mod share;
 mod stratum;
