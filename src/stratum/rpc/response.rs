@@ -1,12 +1,14 @@
 use crate::job::Job;
 use serde::Deserialize;
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct Error {
     pub code: i32,
     pub message: String,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct Response<R> {
     pub result: Option<R>,
@@ -14,6 +16,7 @@ pub struct Response<R> {
     pub id: u32,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct LoginResult {
     pub job: Job,

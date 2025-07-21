@@ -67,7 +67,7 @@ impl Worker {
                 }
             });
         }
-        Worker { share_rx, job_tx }
+        Self { share_rx, job_tx }
     }
     pub fn work(&self, job: Job) {
         self.job_tx.send(job);

@@ -37,7 +37,7 @@ struct Args {
 }
 
 fn all_threads() -> NonZeroUsize {
-    std::thread::available_parallelism().unwrap()
+    std::thread::available_parallelism().expect("Failed to determine available parallelism")
 }
 
 fn main() -> io::Result<()> {

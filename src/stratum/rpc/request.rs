@@ -16,7 +16,7 @@ pub struct LoginParams {
 
 impl Request<LoginParams> {
     pub fn new(params: LoginParams) -> Self {
-        Request::<LoginParams> {
+        Self {
             method: "login".into(),
             params,
             id: 1,
@@ -36,7 +36,7 @@ pub struct SubmitParams {
 
 impl Request<SubmitParams> {
     pub fn new(params: SubmitParams) -> Self {
-        Request::<SubmitParams> {
+        Self {
             method: "submit".into(),
             params,
             id: 1,
@@ -51,7 +51,7 @@ pub struct KeepAlivedParams {
 
 impl Request<KeepAlivedParams> {
     pub fn new(params: KeepAlivedParams) -> Self {
-        Request::<KeepAlivedParams> {
+        Self {
             method: "keepalived".into(),
             params,
             id: 1,
