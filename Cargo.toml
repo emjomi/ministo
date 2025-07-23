@@ -1,6 +1,6 @@
 [package]
 name = "ministo"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["John Mitrich"]
 edition = "2021"
 description = "RandomX CPU miner written in rust"
