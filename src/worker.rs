@@ -3,6 +3,7 @@ use rust_randomx::{Context, Hasher};
 use std::{
     num::NonZeroUsize,
     sync::{
+        atomic::{AtomicU64, Ordering},
         mpsc::{self, Receiver, TryRecvError},
         Arc, Mutex,
     },
@@ -13,6 +14,7 @@ use watch::WatchSender;
 pub struct Worker {
     share_rx: Receiver<Share>,
     job_tx: WatchSender<Job>,
+    hash_count: Arc<AtomicU64>,
 }
 
 impl Worker {
@@ -20,12 +22,14 @@ impl Worker {
     pub fn init(job: Job, num_threads: NonZeroUsize, fast: bool) -> Self {
         let (share_tx, share_rx) = mpsc::channel();
         let (job_tx, job_rx) = watch::channel(job.clone());
+        let hash_count = Arc::new(AtomicU64::new(0));
         tracing::info!("init context");
         let context = Arc::new(Mutex::new(Arc::new(Context::new(&job.seed, fast))));
         tracing::info!("context is ready");
         for i in 0..num_threads.get() {
             let context = context.clone();
             let share_tx = share_tx.clone();
+            let hash_count = hash_count.clone();
             let mut job_rx = job_rx.clone();
             let mut nonce = i as u16;
             let mut job = job.clone();
@@ -53,6 +57,7 @@ impl Worker {
                         let nonce_bytes = &(nonce as u32).to_be_bytes();
                         job.blob[39..=42].copy_from_slice(nonce_bytes);
                         let hash = hasher.hash(&job.blob);
+                        hash_count.fetch_add(1, Ordering::Relaxed);
                         if u64::from_le_bytes(hash.as_ref()[24..].try_into().unwrap()) <= difficulty
                         {
                             tracing::debug!("found share");
@@ -67,12 +72,19 @@ impl Worker {
                 }
             });
         }
-        Self { share_rx, job_tx }
+        Self {
+            share_rx,
+            job_tx,
+            hash_count,
+        }
     }
     pub fn work(&self, job: Job) {
         self.job_tx.send(job);
     }
     pub fn try_recv_share(&self) -> Result<Share, TryRecvError> {
         self.share_rx.try_recv()
+    }
+    pub fn hash_count(&self) -> u64 {
+        self.hash_count.load(Ordering::Relaxed)
     }
 }
