@@ -7,7 +7,7 @@ use crate::{stratum::Stratum, worker::Worker};
 use clap::Parser;
 use std::{
     io,
-    num::NonZeroUsize,
+    num::{NonZeroU64, NonZeroUsize},
     time::{Duration, Instant},
 };
 
@@ -34,10 +34,13 @@ struct Args {
     /// Switch to light mode
     #[arg(long)]
     light: bool,
+    /// Hashrate log interval in seconds
+    #[arg(long, default_value_t = NonZeroU64::new(60).expect("60 is non-zero"))]
+    hashrate_log_interval: NonZeroU64,
 }
 
 fn all_threads() -> NonZeroUsize {
-    std::thread::available_parallelism().expect("Failed to determine available parallelism")
+    std::thread::available_parallelism().expect("failed to determine available parallelism")
 }
 
 fn main() -> io::Result<()> {
@@ -54,11 +57,17 @@ fn main() -> io::Result<()> {
         pass,
         light,
         threads,
+        hashrate_log_interval,
     } = Args::parse();
 
     let mut stratum = Stratum::login(&url, &user, &pass)?;
     let worker = Worker::init(stratum.try_recv_job().unwrap(), threads, !light);
-    let mut timer = Instant::now();
+
+    let mut keep_alive_timer = Instant::now();
+    let mut hashrate_timer = Instant::now();
+    let hashrate_interval = Duration::from_secs(hashrate_log_interval.get());
+
+    let mut last_hash_count = 0u64;
 
     loop {
         if let Ok(job) = stratum.try_recv_job() {
@@ -67,9 +76,18 @@ fn main() -> io::Result<()> {
         if let Ok(share) = worker.try_recv_share() {
             stratum.submit(share)?;
         }
-        if timer.elapsed() >= KEEP_ALIVE_INTERVAL {
-            timer = Instant::now();
+        if keep_alive_timer.elapsed() >= KEEP_ALIVE_INTERVAL {
+            keep_alive_timer = Instant::now();
             stratum.keep_alive()?;
+        }
+        if hashrate_timer.elapsed() >= hashrate_interval {
+            hashrate_timer = Instant::now();
+            let hash_count = worker.hash_count();
+            tracing::info!(
+                "hashrate {} H/s",
+                hash_count.wrapping_sub(last_hash_count) / hashrate_log_interval.get()
+            );
+            last_hash_count = hash_count;
         }
     }
 }
